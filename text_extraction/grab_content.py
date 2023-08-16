@@ -2,11 +2,11 @@ from typing import Literal, Optional
 import trafilatura
 from trafilatura.settings import use_config
 
-Preference = Literal[None, "recall", "precision"]
+Preference = Literal["none", "recall", "precision"]
 
 
 def from_url(
-    url: str, target_language: Optional[str] = None, preference: Preference = None
+    url: str, target_language: str = "auto", preference: Preference = "none"
 ) -> Optional[str]:
     """Extract the text from the given URL"""
     # disable signal, because it causes issues with the web-service
@@ -29,7 +29,7 @@ def from_url(
         url=url,
         favor_recall=favor_recall,
         favor_precision=favor_precision,
-        target_language=target_language,
+        target_language=target_language if target_language != "auto" else None,
         config=newconfig,
     )
     return result

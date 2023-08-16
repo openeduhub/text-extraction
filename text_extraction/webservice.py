@@ -15,8 +15,8 @@ app = FastAPI()
 
 class Data(BaseModel):
     url: str
-    preference: grab_content.Preference = None
-    lang: Optional[str] = None
+    lang: str = "auto"
+    preference: grab_content.Preference = "none"
 
 
 class Result(BaseModel):
@@ -44,11 +44,11 @@ async def from_url(data: Data) -> Result:
         if data.lang is None:
             language_line = "or because the language was not succesfully detected. Try setting the lang parameter."
         else:
-            language_line = f"or because the text is not of language {data.lang}."
+            language_line = f"or because the text is not of language '{data.lang}'."
 
         raise HTTPException(
             status_code=500,
-            detail=f"URL could not be parsed. This could be due to the website relying on JavaScript, {language_line}",
+            detail=f"No content was extracted. This could be due to the website relying on JavaScript, {language_line}",
         )
 
     return Result(text=text)
