@@ -5,7 +5,13 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
-    openapi-checks.url = "/home/yusu/work/ITsJointly/projects/openapi-checks";
+    openapi-checks = {
+      url = "github:openeduhub/nix-openapi-checks";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
+    };
   };
 
   outputs = { self, nixpkgs, flake-utils, ... }:
