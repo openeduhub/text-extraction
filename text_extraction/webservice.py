@@ -48,7 +48,7 @@ async def from_url(data: Data) -> Result:
 
         raise HTTPException(
             status_code=500,
-            detail=f"No content was extracted. This could be due to the website relying on JavaScript, {language_line}",
+            detail=f"No content was extracted. This could be due to no text being present on the page, the website relying on JavaScript, {language_line}",
         )
 
     return Result(text=text)
