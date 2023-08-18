@@ -1,6 +1,7 @@
 from typing import Literal, Optional
 import trafilatura
 from trafilatura.settings import use_config
+import py3langid as langid
 
 Preference = Literal["none", "recall", "precision"]
 
@@ -24,7 +25,7 @@ def from_url(
     elif preference == "precision":
         favor_precision = True
 
-    result = trafilatura.extract(
+    text = trafilatura.extract(
         downloaded,
         url=url,
         favor_recall=favor_recall,
@@ -32,4 +33,10 @@ def from_url(
         target_language=target_language if target_language != "auto" else None,
         config=newconfig,
     )
-    return result
+
+    return text
+
+
+def get_lang(text: str) -> str:
+    lang, _ = langid.classify(text)
+    return lang

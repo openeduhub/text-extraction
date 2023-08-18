@@ -21,6 +21,7 @@ class Data(BaseModel):
 
 class Result(BaseModel):
     text: str
+    lang: str
     version: str = __version__
 
 
@@ -33,10 +34,12 @@ async def _ping():
 async def from_url(data: Data) -> Result:
     """Extract text from a given URL"""
 
+    lang = data.lang
+
     text = grab_content.from_url(
         data.url,
         preference=data.preference,
-        target_language=data.lang,
+        target_language=lang,
     )
 
     # no content could be grabbed
@@ -44,14 +47,16 @@ async def from_url(data: Data) -> Result:
         if data.lang is None:
             language_line = "or because the language was not succesfully detected. Try setting the lang parameter."
         else:
-            language_line = f"or because the text is not of language '{data.lang}'."
+            language_line = f"or because the text is not of language '{lang}'."
 
         raise HTTPException(
             status_code=500,
             detail=f"No content was extracted. This could be due to no text being present on the page, the website relying on JavaScript, {language_line}",
         )
 
-    return Result(text=text)
+    lang = lang if lang != "auto" else grab_content.get_lang(text)
+
+    return Result(text=text, lang=lang)
 
 
 def main():

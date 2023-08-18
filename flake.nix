@@ -41,6 +41,8 @@
                           pydantic
                           (import ./packages/additional-python-packages.nix
                             { inherit python; }).trafilatura
+                          (import ./packages/additional-python-packages.nix
+                            { inherit python; }).py3langid
                         ];
         
         ### list of python packages to include in the development environment
