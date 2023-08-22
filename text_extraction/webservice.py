@@ -51,6 +51,16 @@ summary = "Extract text from a given URL"
         Whether to prioritize precision, recall, or neither
         when extracting the text.
         Default: 'none'
+
+    Returns
+    -------
+    text : str
+        The extracted text.
+    lang : str
+        If lang was set to 'auto', the detected language.
+        Otherwise, whatever lang was set to.
+    version : str
+        The version of the text extractor.
     """,
 )
 async def from_url(data: Data) -> Result:
