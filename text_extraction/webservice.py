@@ -30,7 +30,29 @@ async def _ping():
     pass
 
 
-@app.post("/from-url")
+summary = "Extract text from a given URL"
+
+
+@app.post(
+    "/from-url",
+    summary=summary,
+    description=f"""
+    {summary}
+
+    Parameters
+    ---------
+    url : str
+        The URL from which to extract text.
+    lang : str, optional
+        The ISO 639-1 code for the language of the text.
+        If set to 'auto', try to detect it instead.
+        Default: 'auto'.
+    preference : str, optional
+        Whether to prioritize precision, recall, or neither
+        when extracting the text.
+        Default: 'none'
+    """,
+)
 async def from_url(data: Data) -> Result:
     """Extract text from a given URL"""
 
