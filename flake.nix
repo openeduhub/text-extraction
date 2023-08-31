@@ -21,7 +21,7 @@
         inherit (self.packages.${final.system}) text-extraction;
       });
     } //
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
+    flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -105,9 +105,13 @@
         # the packages that we can build
         packages = {
           text-extraction = text-extraction-service;
-          docker = docker-img;
           default = text-extraction-service;
-        };
+        } // (nixpkgs.lib.optionalAttrs
+          # only build docker images on linux systems
+          (system == "x86_64-linux" || system == "aarch64-linux")
+          {
+            docker = docker-img;
+          });
         # libraries that may be imported
         lib = {
           text-extraction = text-extraction-library;
@@ -124,16 +128,19 @@
             pkgs.nix-init
           ];
         };
-        checks = {
-          openapi-check = (
-            openapi-checks.test-service {
-              service-bin =
-                "${self.packages.${system}.text-extraction}/bin/text-extraction";
-              service-port = 8080;
-              skip-endpoints = [ "/from-url" ];
-            }
-          );
-        };
+        checks = { } // (nixpkgs.lib.optionalAttrs
+          # only run the VM checks on linux systems
+          (system == "x86_64-linux" || system == "aarch64-linux")
+          {
+            openapi-check = (
+              openapi-checks.test-service {
+                service-bin =
+                  "${self.packages.${system}.text-extraction}/bin/text-extraction";
+                service-port = 8080;
+                skip-endpoints = [ "/from-url" ];
+              }
+            );
+          });
       }
     );
 }
