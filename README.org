@@ -5,8 +5,16 @@ A library and micro-service that utilizes [[https://github.com/adbar/trafilatura
 
 While this is currently fairly bare-bones, the goal is to provide various improvements on ~trafilatura~ for our context and to provide fall-backs for when extraction fails, e.g. due to a heavy reliance on ~JavaScript~ on the target website.
 
-* Installation
+* Usage
 
+With ~Nix~, no further installation is required to run the micro-service. Simply run the following command:
+#+begin_src shell
+nix run github:openeduhub/text-extraction
+#+end_src
+
+If the package has been installed locally, the service is available as ~text-extraction~ from the command line.
+
+* Installation
 ** Through Nix
 
 Add this repository to your Flake inputs. This may look like this:
@@ -65,3 +73,4 @@ The package, including both the micro-service and the Python library, can also b
 #+begin_src shell
 pip install git+https://github.com/openeduhub/text-extraction.git
 #+end_src
+
