@@ -1,0 +1,67 @@
+#+title: text-extraction
+#+EXPORT_EXCLUDE_TAGS: noexport
+
+A library and micro-service that utilizes [[https://github.com/adbar/trafilatura][trafilatura]] in order to extract text from URLs.
+
+While this is currently fairly bare-bones, the goal is to provide various improvements on ~trafilatura~ for our context and to provide fall-backs for when extraction fails, e.g. due to a heavy reliance on ~JavaScript~ on the target website.
+
+* Installation
+
+** Through Nix
+
+Add this repository to your Flake inputs. This may look like this:
+#+begin_src nix
+{
+  inputs = {
+    text-extraction = {
+      url = "github:openeduhub/texte-extraction";
+      # optional if using as service, required if using as library
+      nixpkgs.follows = "nixpkgs"; 
+    };
+  };
+}
+#+end_src
+
+The micro-service is provided both as a ~nixpkgs~ overlay and as an output (~packages.${system}.text-extraction~). Thus, it may be included through
+#+begin_src nix
+{
+  outputs = { self, nixpkgs, text-extraction, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ text-extraction.overlays.default ];
+      };
+    in
+      { };
+}
+  
+#+end_src
+
+The Python library is provided as an output (~lib.${system}.text-extraction~). Note that this is a function mapping a Python package (e.g. ~pkgs.python310~) to the library. Its inclusion may look like this:
+#+begin_src nix
+{
+  outputs = { self, nixpkgs, text-extraction, ... };
+  let
+  system = "x86_64-linux";
+  pkgs = import nixpkgs { inherit system; };
+
+  python = pkgs.python310;
+  python-with-packages = python.withPackages (py-pkgs: [
+    # some example packages
+    py-pkgs.numpy
+    py-pkgs.pandas
+    # the text-extraction library
+    (text-extraction.lib.${system}.text-extraction py-pkgs)
+  ]);
+  in
+    { };
+}
+#+end_src
+
+** Through Pip
+
+The package, including both the micro-service and the Python library, can also be installed through ~pip~:
+#+begin_src shell
+pip install git+https://github.com/openeduhub/text-extraction.git
+#+end_src
