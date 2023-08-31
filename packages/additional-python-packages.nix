@@ -1,6 +1,5 @@
-{ python }:
+{ py-pkgs }:
 rec {
-  py-pkgs = python.pkgs;
   ### build trafilatura & its dependencies from pypi
   charset-normalizer =
     py-pkgs.buildPythonPackage rec {
@@ -46,7 +45,7 @@ rec {
       ];
     };
 
-  courlan = 
+  courlan =
     py-pkgs.buildPythonPackage rec {
       pname = "courlan";
       version = "0.9.2";

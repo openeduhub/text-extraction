@@ -31,33 +31,36 @@
         nix-filter = self.inputs.nix-filter.lib;
         openapi-checks = self.inputs.openapi-checks.lib.${system};
         python = pkgs.python310;
-        
+
         ### list of python packages required to build / run the application
         python-packages-build = py-pkgs:
-          with py-pkgs; [ pandas
-                          numpy
-                          uvicorn
-                          fastapi
-                          pydantic
-                          (import ./packages/additional-python-packages.nix
-                            { inherit python; }).trafilatura
-                          (import ./packages/additional-python-packages.nix
-                            { inherit python; }).py3langid
-                        ];
-        
+          with py-pkgs; [
+            pandas
+            numpy
+            uvicorn
+            fastapi
+            pydantic
+            (import ./packages/additional-python-packages.nix
+              { inherit py-pkgs; }).trafilatura
+            (import ./packages/additional-python-packages.nix
+              { inherit py-pkgs; }).py3langid
+          ];
+
         ### list of python packages to include in the development environment
         # the development installation contains all build packages,
         # plus some additional ones we do not need to include in production.
         python-packages-devel = py-pkgs:
-          with py-pkgs; [ ipython
-                          black
-                          pyflakes
-                          isort
-                        ]
+          with py-pkgs; [
+            ipython
+            black
+            pyflakes
+            isort
+          ]
           ++ (python-packages-build py-pkgs);
 
         ### create the python package
-        python-pkg = python: python.pkgs.buildPythonPackage {
+        # the library, parameterized by the python version to use
+        text-extraction-library = py-pkgs: py-pkgs.buildPythonPackage {
           pname = "text-extraction";
           version = "0.1.0";
           /*
@@ -76,36 +79,38 @@
             ];
             exclude = [ (nix-filter.matchExt "pyc") ];
           };
-          propagatedBuildInputs = (python-packages-build python.pkgs);
+          propagatedBuildInputs = (python-packages-build py-pkgs);
         };
 
         # convert the package built above to an application
         # a python application is essentially identical to a python package,
         # but without the importable modules. as a result, it is smaller.
-        python-app = python.pkgs.toPythonApplication (python-pkg python);
-        
+        text-extraction-service =
+          python.pkgs.toPythonApplication (text-extraction-library python.pkgs);
+
         ### build the docker image
         docker-img = pkgs.dockerTools.buildImage {
-          name = python-app.pname;
-          tag = python-app.version;
+          name = text-extraction-service.pname;
+          tag = text-extraction-service.version;
           config = {
             # name of command modified in setup.py
-            Cmd = ["${python-app}/bin/my-python-app"];
+            Cmd = [ "${text-extraction-service}/bin/my-python-app" ];
             # uncomment if the container needs access to ssl certificates
             # Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
           };
         };
 
-      in rec {
+      in
+      {
         # the packages that we can build
-        packages = rec {
-          text-extraction = python-app;
+        packages = {
+          text-extraction = text-extraction-service;
           docker = docker-img;
-          default = text-extraction;
+          default = text-extraction-service;
         };
         # libraries that may be imported
         lib = {
-          text-extraction = python-pkg;
+          text-extraction = text-extraction-library;
         };
         # the development environment
         devShells.default = pkgs.mkShell {
@@ -121,8 +126,11 @@
         };
         checks = {
           openapi-check = (
-            openapi-checks.openapi-valid {
-              serviceBin = "${self.packages.${system}.text-extraction}/bin/text-extraction";
+            openapi-checks.test-service {
+              service-bin =
+                "${self.packages.${system}.text-extraction}/bin/text-extraction";
+              service-port = 8080;
+              skip-endpoints = [ "/from-url" ];
             }
           );
         };
