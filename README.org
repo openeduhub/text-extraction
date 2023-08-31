@@ -14,6 +14,8 @@ nix run github:openeduhub/text-extraction
 
 If the package has been installed locally, the service is available as ~text-extraction~ from the command line.
 
+Once started, see the ~Swagger~ UI for documentation on the service. It is located on =http://localhost:8080/docs= by default.
+
 * Installation
 ** Through Nix
 
