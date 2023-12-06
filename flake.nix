@@ -2,7 +2,7 @@
   description = "Extract text from URLs, utilizing Trafilatura";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     openapi-checks = {
@@ -80,6 +80,8 @@
             exclude = [ (nix-filter.matchExt "pyc") ];
           };
           propagatedBuildInputs = (python-packages-build py-pkgs);
+          # this package has no tests
+          doCheck = false;
         };
 
         # convert the package built above to an application
@@ -88,30 +90,13 @@
         text-extraction-service =
           python.pkgs.toPythonApplication (text-extraction-library python.pkgs);
 
-        ### build the docker image
-        docker-img = pkgs.dockerTools.buildImage {
-          name = text-extraction-service.pname;
-          tag = text-extraction-service.version;
-          config = {
-            # name of command modified in setup.py
-            Cmd = [ "${text-extraction-service}/bin/my-python-app" ];
-            # uncomment if the container needs access to ssl certificates
-            # Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
-          };
-        };
-
       in
       {
         # the packages that we can build
         packages = {
           text-extraction = text-extraction-service;
           default = text-extraction-service;
-        } // (nixpkgs.lib.optionalAttrs
-          # only build docker images on linux systems
-          (system == "x86_64-linux" || system == "aarch64-linux")
-          {
-            docker = docker-img;
-          });
+        };
         # libraries that may be imported
         lib = {
           text-extraction = text-extraction-library;
@@ -137,6 +122,7 @@
                 service-bin =
                   "${self.packages.${system}.text-extraction}/bin/text-extraction";
                 service-port = 8080;
+                openapi-domain = "/openapi.json";
                 skip-endpoints = [ "/from-url" ];
               }
             );

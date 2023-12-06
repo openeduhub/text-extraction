@@ -1,33 +1,20 @@
 { py-pkgs }:
 rec {
   ### build trafilatura & its dependencies from pypi
-  charset-normalizer =
-    py-pkgs.buildPythonPackage rec {
-      pname = "charset-normalizer";
-      version = "3.1.0";
-      src = py-pkgs.fetchPypi {
-        inherit pname version;
-        sha256 = "34e0a2f9c370eb95597aae63bf85eb5e96826d81e3dcf88b8886012906f509b5";
-      };
-      doCheck = false;
-      propagatedBuildInputs = [
-      ];
-    };
-
   htmldate =
     py-pkgs.buildPythonPackage rec {
       pname = "htmldate";
-      version = "1.4.3";
+      version = "1.6.0";
       src = py-pkgs.fetchPypi {
         inherit pname version;
-        sha256 = "ec50f084b997fdf6b26f8c31447e5789f4deb71fe69342cda1d7af0c9f91e01b";
+        hash = "sha256-WCfI9iahaACinlfoGIo9MtCwjKTHvWYlN7c7u/IsRaY=";
       };
       doCheck = false;
       propagatedBuildInputs = [
         py-pkgs.lxml
         py-pkgs.urllib3
         py-pkgs.dateparser
-        charset-normalizer
+        py-pkgs.charset-normalizer
       ];
     };
 
@@ -48,10 +35,10 @@ rec {
   courlan =
     py-pkgs.buildPythonPackage rec {
       pname = "courlan";
-      version = "0.9.2";
+      version = "0.9.5";
       src = py-pkgs.fetchPypi {
         inherit pname version;
-        sha256 = "c21ac0483a644610e1b706fe7b535503f0a85cfd846f3a42e0fa7061b016127f";
+        hash = "sha256-ONw1suO/H11RbQDVGsEuveVD40F8a+b2oic8D8W1s1M=";
       };
       doCheck = false;
       propagatedBuildInputs = [
@@ -78,10 +65,10 @@ rec {
   trafilatura =
     py-pkgs.buildPythonPackage rec {
       pname = "trafilatura";
-      version = "1.5.0";
+      version = "1.6.3";
       src = py-pkgs.fetchPypi {
         inherit pname version;
-        sha256 = "7a3e4f8dda70e3dc1f0ae0347fae97355d98233a53a253b6e483ae35681ee781";
+        hash = "sha256-Zx3W4AAOEBxLzo1w9ECLy3n8vyJ17iVZHv4z4sihYA0=";
       };
       doCheck = false;
       propagatedBuildInputs = [
