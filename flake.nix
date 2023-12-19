@@ -23,11 +23,7 @@
     } //
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          # enable if unfree packages are required
-          config.allowUnfree = false;
-        };
+        pkgs = nixpkgs.legacyPackages.${system};
         nix-filter = self.inputs.nix-filter.lib;
         openapi-checks = self.inputs.openapi-checks.lib.${system};
         python = pkgs.python310;
