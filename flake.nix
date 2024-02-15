@@ -2,7 +2,7 @@
   description = "Extract text from URLs, utilizing Trafilatura";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-23.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     openapi-checks = {
@@ -26,20 +26,19 @@
         pkgs = nixpkgs.legacyPackages.${system};
         nix-filter = self.inputs.nix-filter.lib;
         openapi-checks = self.inputs.openapi-checks.lib.${system};
-        python = pkgs.python310;
+        python = pkgs.python3;
 
         ### list of python packages required to build / run the application
         python-packages-build = py-pkgs:
           with py-pkgs; [
+            setuptools
             pandas
             numpy
             uvicorn
             fastapi
             pydantic
-            (import ./packages/additional-python-packages.nix
-              { inherit py-pkgs; }).trafilatura
-            (import ./packages/additional-python-packages.nix
-              { inherit py-pkgs; }).py3langid
+            trafilatura
+            py3langid
           ];
 
         ### list of python packages to include in the development environment

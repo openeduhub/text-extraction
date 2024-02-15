@@ -1,4 +1,6 @@
+setuptools
 pydantic
 fastapi
 uvicorn
 trafilatura
+py3langid
