@@ -38,9 +38,10 @@ async def from_headless_browser(
     preference: Preference = "none",
     goto_fun: Callable[[async_api.Page, str], Awaitable] = default_goto,
 ) -> Optional[str]:
-    page = await browser.new_page()
-    await goto_fun(page, url)
-    content = await page.content()
+    # create a new page for this task and close it once we are done
+    async with await browser.new_page() as page:
+        await goto_fun(page, url)
+        content = await page.content()
 
     if content is None:
         return None
