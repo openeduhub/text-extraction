@@ -14,27 +14,38 @@ def from_url(
     newconfig = use_config()
     newconfig.set("DEFAULT", "EXTRACTION_TIMEOUT", "0")
 
-    downloaded = trafilatura.fetch_url(url, config=newconfig)
+    downloaded = trafilatura.fetch_response(url, config=newconfig)
 
     if downloaded is None:
         return None
 
+    return from_binary_html(
+        downloaded.data, target_language=target_language, preference=preference
+    )
+
+
+def from_binary_html(
+    html: bytes,
+    target_language: str = "auto",
+    preference: Preference = "none",
+    **kwargs
+) -> Optional[str]:
+    """Extract the text from the raw html."""
     favor_recall, favor_precision = False, False
     if preference == "recall":
         favor_recall = True
     elif preference == "precision":
         favor_precision = True
 
-    text = trafilatura.extract(
-        downloaded,
-        url=url,
+    extracted_text = trafilatura.extract(
+        html,
         favor_recall=favor_recall,
         favor_precision=favor_precision,
         target_language=target_language if target_language != "auto" else None,
-        config=newconfig,
+        **kwargs
     )
 
-    return text
+    return extracted_text
 
 
 def get_lang(text: str) -> str:
