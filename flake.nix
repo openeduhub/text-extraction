@@ -39,6 +39,7 @@
             pydantic
             trafilatura
             py3langid
+            playwright
           ];
 
         ### list of python packages to include in the development environment
@@ -82,8 +83,14 @@
         # convert the package built above to an application
         # a python application is essentially identical to a python package,
         # but without the importable modules. as a result, it is smaller.
-        text-extraction-service =
-          python.pkgs.toPythonApplication (text-extraction-library python.pkgs);
+        text-extraction-service = python.pkgs.toPythonApplication (
+          (text-extraction-library python.pkgs).overrideAttrs
+            (finalAttrs: prevAttrs: {
+              # provide the browsers for playwright directly through nix
+              makeWrapperArgs = [
+                "--set PLAYWRIGHT_BROWSERS_PATH ${pkgs.playwright-driver.browsers}"
+              ];
+            }));
 
       in
       {
@@ -106,6 +113,8 @@
             # for automatically generating nix expressions, e.g. from PyPi
             pkgs.nix-template
             pkgs.nix-init
+            # auto-formatting
+            pkgs.nixpkgs-fmt
           ];
         };
         checks = { } // (nixpkgs.lib.optionalAttrs

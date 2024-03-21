@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-
 import argparse
-from typing import Optional, Literal
+from enum import StrEnum, auto
+from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from playwright import async_api
+from pydantic import BaseModel, Field
 
 import text_extraction.grab_content as grab_content
 from text_extraction._version import __version__
@@ -13,8 +14,15 @@ from text_extraction._version import __version__
 app = FastAPI()
 
 
+class Methods(StrEnum):
+    simple = auto()
+    browser = auto()
+
+
 class Data(BaseModel):
     url: str
+    method: Methods = Methods.simple
+    browser_location: Optional[str] = Field(default=None, examples=[None])
     lang: str = "auto"
     preference: grab_content.Preference = "none"
 
@@ -51,6 +59,9 @@ summary = "Extract text from a given URL"
         Whether to prioritize precision, recall, or neither
         when extracting the text.
         Default: 'none'
+    method : "simple" or "browser"
+        Whether to get the content of the website naively, or to use a headless
+        browser in order to e.g. deal with JavaScript-heavy pages.
 
     Returns
     -------
@@ -68,13 +79,36 @@ async def from_url(data: Data) -> Result:
 
     lang = data.lang
 
-    text = grab_content.from_url(
-        data.url,
-        preference=data.preference,
-        target_language=lang,
-    )
+    # the simple method is, as its name suggest, pretty simple to use
+    if data.method == Methods.simple:
+        text = grab_content.from_url(
+            url=data.url,
+            preference=data.preference,
+            target_language=lang,
+        )
 
-    # no content could be grabbed
+    # using a headless browser requires us to specify the browser to use.
+    # if no cdp location was given, just start up a new one.
+    else:
+        if data.browser_location is None:
+            get_browser_fun = lambda x: x.chromium.launch()
+        else:
+            get_browser_fun = lambda x: x.chromium.connect_over_cdp(
+                endpoint_url=data.browser_location
+            )
+        async with (
+            async_api.async_playwright() as p,
+            # close (the connection to) the browser after we are done
+            await get_browser_fun(p) as browser,
+        ):
+            text = await grab_content.from_headless_browser(
+                browser,
+                url=data.url,
+                preference=data.preference,
+                target_language=lang,
+            )
+
+    # no content could be grabbed -> raise an exception
     if text is None:
         if data.lang is None:
             language_line = "or because the language was not succesfully detected. Try setting the lang parameter."

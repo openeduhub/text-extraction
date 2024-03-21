@@ -1,7 +1,11 @@
-from typing import Literal, Optional
+from functools import partial
+from collections.abc import Callable, Awaitable
+from typing import Literal, Optional, Any
+
+from playwright import async_api
+import py3langid as langid
 import trafilatura
 from trafilatura.settings import use_config
-import py3langid as langid
 
 Preference = Literal["none", "recall", "precision"]
 
@@ -14,38 +18,55 @@ def from_url(
     newconfig = use_config()
     newconfig.set("DEFAULT", "EXTRACTION_TIMEOUT", "0")
 
-    downloaded = trafilatura.fetch_response(url, config=newconfig)
+    downloaded = trafilatura.fetch_response(url, config=newconfig, decode=True)
 
     if downloaded is None:
         return None
 
     return from_binary_html(
-        downloaded.data, target_language=target_language, preference=preference
+        downloaded, target_language=target_language, preference=preference
+    )
+
+
+default_goto = partial(async_api.Page.goto, wait_until="load", timeout=90000)
+
+
+async def from_headless_browser(
+    browser: async_api.Browser,
+    url: str,
+    target_language: str = "auto",
+    preference: Preference = "none",
+    goto_fun: Callable[[async_api.Page, str], Awaitable] = default_goto,
+) -> Optional[str]:
+    page = await browser.new_page()
+    await goto_fun(page, url)
+    content = await page.content()
+
+    if content is None:
+        return None
+
+    return from_binary_html(
+        content, target_language=target_language, preference=preference
     )
 
 
 def from_binary_html(
-    html: bytes,
-    target_language: str = "auto",
-    preference: Preference = "none",
-    **kwargs
+    html: Any, target_language: str = "auto", preference: Preference = "none", **kwargs
 ) -> Optional[str]:
     """Extract the text from the raw html."""
-    favor_recall, favor_precision = False, False
-    if preference == "recall":
-        favor_recall = True
-    elif preference == "precision":
-        favor_precision = True
-
-    extracted_text = trafilatura.extract(
+    fulltext = trafilatura.extract(
         html,
-        favor_recall=favor_recall,
-        favor_precision=favor_precision,
+        favor_recall=preference == "recall",
+        favor_precision=preference == "precision",
         target_language=target_language if target_language != "auto" else None,
         **kwargs
     )
 
-    return extracted_text
+    # when trafilatura doesn't provide anything, use html2text as a fall-bock
+    if fulltext is None:
+        fulltext = trafilatura.html2txt(html)
+
+    return fulltext
 
 
 def get_lang(text: str) -> str:
