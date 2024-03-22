@@ -4,7 +4,9 @@ from enum import StrEnum, auto
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
+
 from playwright import async_api
 from pydantic import BaseModel, Field
 
@@ -74,7 +76,7 @@ summary = "Extract text from a given URL"
         The version of the text extractor.
     """,
 )
-async def from_url(data: Data) -> Result:
+async def from_url(request: Request, data: Data) -> Result:
     """Extract text from a given URL"""
 
     lang = data.lang
@@ -82,7 +84,7 @@ async def from_url(data: Data) -> Result:
     # the simple method is, as its name suggest, pretty simple to use
     if data.method == Methods.simple:
         text = grab_content.from_url(
-            url=data.url,
+            data.url,
             preference=data.preference,
             target_language=lang,
         )
@@ -102,8 +104,8 @@ async def from_url(data: Data) -> Result:
             await get_browser_fun(p) as browser,
         ):
             text = await grab_content.from_headless_browser(
-                browser,
-                url=data.url,
+                data.url,
+                browser=browser,
                 preference=data.preference,
                 target_language=lang,
             )

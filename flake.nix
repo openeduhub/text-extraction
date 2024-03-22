@@ -2,7 +2,9 @@
   description = "Extract text from URLs, utilizing Trafilatura";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # HACK: use nixpkgs from a pull request, updating pyrate-limiter to the
+    # newest version
+    nixpkgs.url = "github:r-ryantm/nixpkgs/auto-update/python311Packages.pyrate-limiter";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     openapi-checks = {
@@ -34,8 +36,9 @@
             setuptools
             pandas
             numpy
-            uvicorn
             fastapi
+            pyrate-limiter
+            uvicorn
             pydantic
             trafilatura
             py3langid

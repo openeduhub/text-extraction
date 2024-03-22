@@ -1,15 +1,22 @@
+from collections.abc import Awaitable, Callable
 from functools import partial
-from collections.abc import Callable, Awaitable
-from typing import Literal, Optional, Any
+from typing import Any, Literal, Optional
 
-from playwright import async_api
 import py3langid as langid
 import trafilatura
+from playwright import async_api
 from trafilatura.settings import use_config
 
+from text_extraction.rate_limiting import get_simple_multibucket_limiter, url_mapper
+
+# limit per-domain accesses to 5 per second and 50 per minute
+limiter = get_simple_multibucket_limiter(
+    max_rate_per_second=5, base_weight=1
+).as_decorator()(url_mapper)
 Preference = Literal["none", "recall", "precision"]
 
 
+@limiter
 def from_url(
     url: str, target_language: str = "auto", preference: Preference = "none"
 ) -> Optional[str]:
@@ -31,9 +38,10 @@ def from_url(
 default_goto = partial(async_api.Page.goto, wait_until="load", timeout=90000)
 
 
+@limiter  # type: ignore
 async def from_headless_browser(
-    browser: async_api.Browser,
     url: str,
+    browser: async_api.Browser,
     target_language: str = "auto",
     preference: Preference = "none",
     goto_fun: Callable[[async_api.Page, str], Awaitable] = default_goto,
