@@ -61,7 +61,7 @@
         # the library, parameterized by the python version to use
         text-extraction-library = py-pkgs: py-pkgs.buildPythonPackage {
           pname = "text-extraction";
-          version = "0.1.0";
+          version = "0.2.0";
           /*
           only include files that are related to the application
           this will prevent unnecessary rebuilds
