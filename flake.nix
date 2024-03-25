@@ -2,9 +2,7 @@
   description = "Extract text from URLs, utilizing Trafilatura";
 
   inputs = {
-    # HACK: use nixpkgs from a pull request, updating pyrate-limiter to the
-    # newest version
-    nixpkgs.url = "github:r-ryantm/nixpkgs/auto-update/python311Packages.pyrate-limiter";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     openapi-checks = {
@@ -37,12 +35,21 @@
             pandas
             numpy
             fastapi
-            pyrate-limiter
             uvicorn
             pydantic
             trafilatura
             py3langid
             playwright
+            # the version of pyrate-limiter in nixpkgs is old, so override it
+            (pyrate-limiter.overrideAttrs (oldAttrs: rec {
+              version = "3.6.0";
+              # the name does not properly update by just changing the version
+              name = "pyrate-limiter-${version}";
+              src = oldAttrs.src.override {
+                rev = "refs/tags/v${version}";
+                hash = "sha256-I/wgHVm3QMgt5KEEJnjMj0eH7LTIlNxifKnHqfH4VzA=";
+              };
+            }))
           ];
 
         ### list of python packages to include in the development environment
@@ -101,10 +108,6 @@
         packages = {
           text-extraction = text-extraction-service;
           default = text-extraction-service;
-        };
-        # libraries that may be imported
-        lib = {
-          text-extraction = text-extraction-library;
         };
         # the development environment
         devShells.default = pkgs.mkShell {

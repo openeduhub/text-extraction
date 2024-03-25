@@ -88,16 +88,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1710909642,
-        "narHash": "sha256-5DRQq7aHkrq2XhKZzSICQqSVi/bG9XmZAq/sgdIZK8M=",
-        "owner": "r-ryantm",
+        "lastModified": 1711163522,
+        "narHash": "sha256-YN/Ciidm+A0fmJPWlHBGvVkcarYWSC+s3NTPk/P+q3c=",
+        "owner": "nixos",
         "repo": "nixpkgs",
-        "rev": "069d70d6c16892050e67fe433316c9cccdbe446e",
+        "rev": "44d0940ea560dee511026a53f0e2e2cde489b4d4",
         "type": "github"
       },
       "original": {
-        "owner": "r-ryantm",
-        "ref": "auto-update/python311Packages.pyrate-limiter",
+        "owner": "nixos",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
