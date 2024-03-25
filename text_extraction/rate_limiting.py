@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from dataclasses import dataclass, field
 from typing import Callable, Optional, Protocol, Type
 from urllib.parse import urlparse
 
@@ -132,6 +131,12 @@ def get_simple_multibucket_limiter(
 
 
 def url_mapper(url: str, *args, **kwargs) -> tuple[str, int]:
-    """Return the domain name from the given URL."""
+    """
+    Return the domain name and a weight from the given URL.
+
+    The weight is used to indicate how costly the particular URL is to access
+    and affects how quickly the rate limiter kicks in. Currently, this weight
+    is always 1.
+    """
     url_parsed = urlparse(url)
     return url_parsed.hostname or "", 1
