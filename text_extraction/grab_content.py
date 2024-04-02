@@ -7,17 +7,16 @@ import trafilatura
 from playwright import async_api
 from trafilatura.settings import use_config
 
-from text_extraction.rate_limiting import get_simple_multibucket_limiter, url_mapper
+from text_extraction.rate_limiting import get_simple_multibucket_limiter, domain_mapper
 
 # limit per-domain accesses to 5 per second and 50 per minute
 limiter = get_simple_multibucket_limiter(
     max_rate_per_second=5, base_weight=1
-).as_decorator()(url_mapper)
+).as_decorator()(domain_mapper)
 Preference = Literal["none", "recall", "precision"]
 
 
-@limiter
-def from_url(
+def from_html_unlimited(
     url: str, target_language: str = "auto", preference: Preference = "none"
 ) -> Optional[str]:
     """Extract the text from the given URL"""
@@ -35,11 +34,12 @@ def from_url(
     )
 
 
+from_html = limiter(from_html_unlimited)
+
 default_goto = partial(async_api.Page.goto, wait_until="load", timeout=90000)
 
 
-@limiter  # type: ignore
-async def from_headless_browser(
+async def from_headless_browser_unlimited(
     url: str,
     browser: async_api.Browser,
     target_language: str = "auto",
@@ -57,6 +57,9 @@ async def from_headless_browser(
     return from_binary_html(
         content, target_language=target_language, preference=preference
     )
+
+
+from_headless_browser = limiter(from_headless_browser_unlimited)  # type: ignore
 
 
 def from_binary_html(

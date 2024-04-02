@@ -83,7 +83,7 @@ async def from_url(request: Request, data: Data) -> Result:
 
     # the simple method is, as its name suggest, pretty simple to use
     if data.method == Methods.simple:
-        text = grab_content.from_url(
+        text = grab_content.from_html(
             data.url,
             preference=data.preference,
             target_language=lang,

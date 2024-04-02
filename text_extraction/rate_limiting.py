@@ -130,7 +130,7 @@ def get_simple_multibucket_limiter(
     )
 
 
-def url_mapper(url: str, *args, **kwargs) -> tuple[str, int]:
+def domain_mapper(url: str, *args, **kwargs) -> tuple[str, int]:
     """
     Return the domain name and a weight from the given URL.
 
