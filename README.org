@@ -5,7 +5,7 @@ A library and micro-service that utilizes [[https://github.com/adbar/trafilatura
 
 While this is currently fairly bare-bones, the goal is to provide various improvements on ~trafilatura~ for our context and to provide fall-backs for when extraction fails, e.g. due to a heavy reliance on ~JavaScript~ on the target website.
 
-* Usage
+* Usage as service
 
 With ~Nix~, no further installation is required to run the micro-service. Simply run the following command:
 #+begin_src shell
@@ -15,6 +15,28 @@ nix run github:openeduhub/text-extraction
 If the package has been installed locally, the service is available as ~text-extraction~ from the command line.
 
 Once started, see the ~Swagger~ UI for documentation on the service. It is located on =http://localhost:8080/docs= by default.
+
+* Usage as library
+
+For more customization and control over behavior, use the implemented functionality as a native Python library, instead of the provided REST API.
+
+The functions that should be of primary interest are ~from_headless_browser_unlimited~ and ~from_html_unlimited~, found in the ~text_extraction.grab_content~ module.
+
+Rate-limiting can be set up using the ~text_extraction.rate_limiting~ module, e.g.
+#+begin_src python
+from text_extraction.grab_content import from_headless_browser_unlimited
+from text_extraction.rate_limiting import get_simple_multibucket_limiter, domain_mapper
+
+# limit per-domain accesses to 5 per second and 50 per minute
+limiter = get_simple_multibucket_limiter(
+    max_rate_per_second=5, base_weight=1
+).as_decorator()(domain_mapper)
+
+from_headless_browser_limited = limiter(from_headless_browser_unlimited)
+#+end_src
+
+#+RESULTS:
+: None
 
 * Installation
 ** Through Nix
@@ -43,29 +65,32 @@ The micro-service is provided both as a ~nixpkgs~ overlay and as an output (~pac
         overlays = [ text-extraction.overlays.default ];
       };
     in
-      { };
+      { ... };
 }
   
 #+end_src
 
-The Python library is provided as an output (~lib.${system}.text-extraction~). Note that this is a function mapping a Python package (e.g. ~pkgs.python310~) to the library. Its inclusion may look like this:
+The Python library is provided as another ~nixpkgs~ overlay:
 #+begin_src nix
 {
-  outputs = { self, nixpkgs, text-extraction, ... };
-  let
-  system = "x86_64-linux";
-  pkgs = import nixpkgs { inherit system; };
-
-  python = pkgs.python310;
-  python-with-packages = python.withPackages (py-pkgs: [
-    # some example packages
-    py-pkgs.numpy
-    py-pkgs.pandas
-    # the text-extraction library
-    (text-extraction.lib.${system}.text-extraction py-pkgs)
-  ]);
-  in
-    { };
+  outputs = { self, nixpkgs, text-extraction, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ text-extraction.overlays.python-lib ];
+      };
+      
+      python = pkgs.python3;
+      python-with-packages = python.withPackages (py-pkgs: [
+        # some example packages
+        py-pkgs.numpy
+        py-pkgs.pandas
+        # the text-extraction library, used as any other python library
+        py-pkgs.text-extraction
+      ]);
+    in
+      { ... };
 }
 #+end_src
 
