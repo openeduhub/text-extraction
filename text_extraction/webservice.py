@@ -93,7 +93,15 @@ async def from_url(request: Request, data: Data) -> Result:
     # if no cdp location was given, just start up a new one.
     else:
         if data.browser_location is None:
-            get_browser_fun = lambda x: x.chromium.launch()
+
+            get_browser_fun = lambda x: x.chromium.launch(
+                args=[
+                    # HACK: for some reason, passing this avoids an issue where
+                    # text extraction would fail when the service is run within
+                    # Docker, due to a page crash
+                    "--single-process"
+                ]
+            )
         else:
             get_browser_fun = lambda x: x.chromium.connect_over_cdp(
                 endpoint_url=data.browser_location
