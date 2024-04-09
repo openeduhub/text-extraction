@@ -1,11 +1,11 @@
 {
   mkShell,
-  text-extraction,
   python3,
   pyright,
   nix-template,
   nix-init,
   nixfmt,
+  nix-tree,
 }:
 mkShell {
   packages = [
@@ -17,12 +17,14 @@ mkShell {
         black
         pyflakes
         isort
+        mypy
       ]
-      ++ text-extraction.propagatedBuildInputs
+      ++ py-pkgs.text-extraction.propagatedBuildInputs
     ))
     pyright
     nix-template
     nix-init
     nixfmt
+    nix-tree
   ];
 }

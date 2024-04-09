@@ -46,7 +46,7 @@
           python-lib = pkgs-with-lib.python3Packages.text-extraction;
         };
         # the development environment
-        devShells.default = pkgs-with-lib.python3Packages.callPackage ./shell.nix { };
+        devShells.default = pkgs-with-lib.callPackage ./shell.nix { };
         checks =
           { }
           // (nixpkgs.lib.optionalAttrs
