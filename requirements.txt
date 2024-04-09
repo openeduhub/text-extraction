@@ -1,6 +1,10 @@
 setuptools
-pydantic
+pandas
+numpy
 fastapi
 uvicorn
+pydantic
 trafilatura
 py3langid
+playwright
+pyrate-limiter>=3
