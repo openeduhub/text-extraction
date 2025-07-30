@@ -4,6 +4,7 @@ numpy
 fastapi
 uvicorn
 pydantic
+requests
 trafilatura
 py3langid
 playwright
