@@ -5,13 +5,13 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
-from fastapi import FastAPI
 
 from playwright import async_api
 from pydantic import BaseModel, Field
 
 import text_extraction.grab_content as grab_content
 from text_extraction._version import __version__
+from text_extraction.grab_content import GrabbedContent, FailedContent
 
 app = FastAPI()
 
@@ -32,7 +32,43 @@ class Data(BaseModel):
 class Result(BaseModel):
     text: str
     lang: str
+    status: int = Field(
+        description="HTTP status code of the target website.", examples=[200, 301]
+    )
     version: str = __version__
+
+
+class FailedExtraction(BaseModel):
+    error_message: str = Field(
+        default="No content was extracted.",
+    )
+    status: int = Field(
+        description="HTTP status code of the target website ", examples=[404, 503]
+    )
+    reason: str | None = Field(
+        description="HTTP reason of the target website. "
+        "Only available if the website status indicated an error.",
+        examples=["Not Found", "Service Unavailable"],
+        default=None,
+    )
+    version: str = __version__
+    content: str | None = Field(
+        default=None,
+        description="The response content of the target website. ",
+        examples=["<html>...", "</html>"],
+    )
+
+    class Config:
+        # this config makes sure that the HTTP Exception with status 424 appears in the openapi.json
+        schema_extra = {
+            "example": {
+                "error_message": "No content was extracted from the target website.",
+                "status": 404,
+                "reason": "Not Found",
+                "version": __version__,
+                "content": "<html>...",
+            }
+        }
 
 
 @app.get("/_ping")
@@ -74,26 +110,43 @@ summary = "Extract text from a given URL"
         Otherwise, whatever lang was set to.
     version : str
         The version of the text extractor.
+    status: int
+        The HTTP status code of the target website.
     """,
+    responses={
+        200: {"model": Result},
+        424: {
+            "model": FailedExtraction,
+            "description": "Failed Dependency: No content could be extracted from the target website.",
+        },
+    },
 )
 async def from_url(request: Request, data: Data) -> Result:
     """Extract text from a given URL"""
-
+    reason, status, text = None, None, None
     lang = data.lang
 
-    # the simple method is, as its name suggest, pretty simple to use
+    # the simple method is, as its name suggests, pretty simple to use
     if data.method == Methods.simple:
-        text = grab_content.from_html(
+        extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
             data.url,
             preference=data.preference,
             target_language=lang,
         )
+        if isinstance(extracted_content, FailedContent):
+            # sad case: text extraction nfailed
+            text = None
+            content = extracted_content.content
+            reason = extracted_content.reason
+            status = extracted_content.status
+        elif isinstance(extracted_content, GrabbedContent):
+            text = extracted_content.fulltext
+            status = extracted_content.status
 
     # using a headless browser requires us to specify the browser to use.
     # if no cdp location was given, just start up a new one.
     else:
         if data.browser_location is None:
-
             get_browser_fun = lambda x: x.chromium.launch(
                 args=[
                     # HACK: for some reason, passing this avoids an issue where
@@ -111,12 +164,21 @@ async def from_url(request: Request, data: Data) -> Result:
             # close (the connection to) the browser after we are done
             await get_browser_fun(p) as browser,
         ):
-            text = await grab_content.from_headless_browser(
+            extracted_content = await grab_content.from_headless_browser(
                 data.url,
                 browser=browser,
                 preference=data.preference,
                 target_language=lang,
             )
+            if isinstance(extracted_content, FailedContent):
+                # sad case
+                text = None
+                content = extracted_content.content
+                reason = extracted_content.reason
+                status = extracted_content.status
+            elif isinstance(extracted_content, GrabbedContent):
+                text = extracted_content.fulltext
+                status = extracted_content.status
 
     # no content could be grabbed -> raise an exception
     if text is None:
@@ -125,14 +187,22 @@ async def from_url(request: Request, data: Data) -> Result:
         else:
             language_line = f"or because the text is not of language '{lang}'."
 
+        failed_extraction = FailedExtraction(
+            error_message=f"No content was extracted. "
+            f"This could be due to no text being present on the page, the website relying on JavaScript, "
+            f"{language_line}",
+            status=status,
+            reason=reason,
+            content=content,
+        )
         raise HTTPException(
-            status_code=500,
-            detail=f"No content was extracted. This could be due to no text being present on the page, the website relying on JavaScript, {language_line}",
+            status_code=424,
+            detail=failed_extraction.model_dump(),
         )
 
     lang = lang if lang != "auto" else grab_content.get_lang(text)
 
-    return Result(text=text, lang=lang)
+    return Result(text=text, lang=lang, status=status)
 
 
 def main():
