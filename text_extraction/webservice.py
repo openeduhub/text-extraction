@@ -27,11 +27,18 @@ class Methods(StrEnum):
     browser = auto()
 
 
+class OutputFormats(StrEnum):
+    txt = auto()
+    markdown = auto()
+    html = auto()
+
+
 class Data(BaseModel):
     url: str
     method: Methods = Methods.simple
     browser_location: Optional[str] = Field(default=None, examples=[None])
     lang: str = "auto"
+    output_format: str = OutputFormats.txt
     preference: grab_content.Preference = "none"
 
 
@@ -106,6 +113,7 @@ summary = "Extract text from a given URL"
     method : "simple" or "browser"
         Whether to get the content of the website naively, or to use a headless
         browser in order to e.g. deal with JavaScript-heavy pages.
+    output_format : "text" or "markdown" or "html"
 
     Returns
     -------
@@ -138,6 +146,7 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
             data.url,
             preference=data.preference,
             target_language=lang,
+            output_format=data.output_format,
         )
         if isinstance(extracted_content, FailedContent):
             # sad case: text extraction nfailed

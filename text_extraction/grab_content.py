@@ -27,11 +27,17 @@ class FailedContent(BaseModel):
 limiter = get_simple_multibucket_limiter(
     max_rate_per_second=5, base_weight=1
 ).as_decorator()(domain_mapper)
+
+# Preference settings control the trafilatura.extract() core function
+# https://trafilatura.readthedocs.io/en/latest/corefunctions.html#extraction
 Preference = Literal["none", "recall", "precision"]
 
 
 def from_html_unlimited(
-    url: str, target_language: str = "auto", preference: Preference = "none"
+    url: str,
+    target_language: str = "auto",
+    preference: Preference = "none",
+    output_format="txt",
 ) -> GrabbedContent | FailedContent:
     """Extract the text from the given URL"""
     # disable signal, because it causes issues with the web-service
@@ -50,6 +56,7 @@ def from_html_unlimited(
                 _response.content,
                 target_language=target_language,
                 preference=preference,
+                output_format=output_format,
             )
             grabbed_content: GrabbedContent = GrabbedContent(
                 fulltext=_text,
@@ -66,7 +73,10 @@ def from_html_unlimited(
             return failed_content
     else:
         _text = from_binary_html(
-            downloaded, target_language=target_language, preference=preference
+            downloaded,
+            target_language=target_language,
+            preference=preference,
+            output_format=output_format,
         )
         grabbed_content: GrabbedContent = GrabbedContent(
             fulltext=_text,
@@ -85,6 +95,7 @@ async def from_headless_browser_unlimited(
     browser: async_api.Browser,
     target_language: str = "auto",
     preference: Preference = "none",
+    output_format="txt",
     goto_fun: Callable[[async_api.Page, str], Awaitable] = default_goto,
 ) -> GrabbedContent | FailedContent:
     # create a new page for this task and close it once we are done
@@ -99,7 +110,10 @@ async def from_headless_browser_unlimited(
             return failed_content
         else:
             _fulltext = from_binary_html(
-                content, target_language=target_language, preference=preference
+                content,
+                target_language=target_language,
+                preference=preference,
+                output_format=output_format,
             )
             grabbed_content: GrabbedContent = GrabbedContent(
                 fulltext=_fulltext,
@@ -112,13 +126,20 @@ from_headless_browser = limiter(from_headless_browser_unlimited)  # type: ignore
 
 
 def from_binary_html(
-    html: Any, target_language: str = "auto", preference: Preference = "none", **kwargs
+    html: Any,
+    target_language: str = "auto",
+    preference: Preference = "none",
+    output_format="txt",
+    **kwargs,
 ) -> Optional[str]:
     """Extract the text from the raw html."""
+    # ToDo:
+    #  - markdown conversion for binary files via MarkItDown (instead of trafilatura)
     fulltext = trafilatura.extract(
         html,
         favor_recall=preference == "recall",
         favor_precision=preference == "precision",
+        output_format=output_format,
         target_language=target_language if target_language != "auto" else None,
         **kwargs,
     )
