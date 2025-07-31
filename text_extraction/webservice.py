@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import datetime
 from enum import StrEnum, auto
 from typing import Optional
 
@@ -13,6 +14,12 @@ from text_extraction._version import __version__
 from text_extraction.grab_content import GrabbedContent, FailedContent
 
 app = FastAPI()
+
+
+class HealthCheck(BaseModel):
+    status: str = "ok"
+    version: str = __version__
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
 class Methods(StrEnum):
@@ -71,8 +78,8 @@ class FailedExtraction(BaseModel):
 
 
 @app.get("/_ping")
-async def _ping():
-    pass
+async def _ping() -> HealthCheck:
+    return HealthCheck()
 
 
 summary = "Extract text from a given URL"
