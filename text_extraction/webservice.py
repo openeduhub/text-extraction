@@ -4,8 +4,7 @@ from enum import StrEnum, auto
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-
+from fastapi import FastAPI, HTTPException, Request, status
 from playwright import async_api
 from pydantic import BaseModel, Field
 
@@ -29,10 +28,10 @@ class Data(BaseModel):
     preference: grab_content.Preference = "none"
 
 
-class Result(BaseModel):
+class ExtractionResult(BaseModel):
     text: str
     lang: str
-    status: int = Field(
+    status: int | None = Field(
         description="HTTP status code of the target website.", examples=[200, 301]
     )
     version: str = __version__
@@ -42,7 +41,7 @@ class FailedExtraction(BaseModel):
     error_message: str = Field(
         default="No content was extracted.",
     )
-    status: int = Field(
+    status: int | None = Field(
         description="HTTP status code of the target website ", examples=[404, 503]
     )
     reason: str | None = Field(
@@ -114,16 +113,16 @@ summary = "Extract text from a given URL"
         The HTTP status code of the target website.
     """,
     responses={
-        200: {"model": Result},
-        424: {
+        status.HTTP_200_OK: {"model": ExtractionResult},
+        status.HTTP_424_FAILED_DEPENDENCY: {
             "model": FailedExtraction,
             "description": "Failed Dependency: No content could be extracted from the target website.",
         },
     },
 )
-async def from_url(request: Request, data: Data) -> Result:
+async def from_url(request: Request, data: Data) -> ExtractionResult:
     """Extract text from a given URL"""
-    reason, status, text = None, None, None
+    _reason, _status, _text = None, None, None
     lang = data.lang
 
     # the simple method is, as its name suggests, pretty simple to use
@@ -135,13 +134,13 @@ async def from_url(request: Request, data: Data) -> Result:
         )
         if isinstance(extracted_content, FailedContent):
             # sad case: text extraction nfailed
-            text = None
-            content = extracted_content.content
-            reason = extracted_content.reason
-            status = extracted_content.status
+            _text = None
+            _content = extracted_content.content
+            _reason = extracted_content.reason
+            _status = extracted_content.status
         elif isinstance(extracted_content, GrabbedContent):
-            text = extracted_content.fulltext
-            status = extracted_content.status
+            _text = extracted_content.fulltext
+            _status = extracted_content.status
 
     # using a headless browser requires us to specify the browser to use.
     # if no cdp location was given, just start up a new one.
@@ -172,18 +171,22 @@ async def from_url(request: Request, data: Data) -> Result:
             )
             if isinstance(extracted_content, FailedContent):
                 # sad case
-                text = None
-                content = extracted_content.content
-                reason = extracted_content.reason
-                status = extracted_content.status
+                _text = None
+                _content = extracted_content.content
+                _reason = extracted_content.reason
+                _status = extracted_content.status
             elif isinstance(extracted_content, GrabbedContent):
-                text = extracted_content.fulltext
-                status = extracted_content.status
+                _text = extracted_content.fulltext
+                _status = extracted_content.status
 
     # no content could be grabbed -> raise an exception
-    if text is None:
+    if _text is None:
         if data.lang is None:
             language_line = "or because the language was not succesfully detected. Try setting the lang parameter."
+        elif _status != 200:
+            language_line = (
+                f"or because the website returned an error status code {_status}."
+            )
         else:
             language_line = f"or because the text is not of language '{lang}'."
 
@@ -191,18 +194,18 @@ async def from_url(request: Request, data: Data) -> Result:
             error_message=f"No content was extracted. "
             f"This could be due to no text being present on the page, the website relying on JavaScript, "
             f"{language_line}",
-            status=status,
-            reason=reason,
-            content=content,
+            status=_status,
+            reason=_reason,
+            content=_content,
         )
         raise HTTPException(
             status_code=424,
             detail=failed_extraction.model_dump(),
         )
 
-    lang = lang if lang != "auto" else grab_content.get_lang(text)
+    lang = lang if lang != "auto" else grab_content.get_lang(_text)
 
-    return Result(text=text, lang=lang, status=status)
+    return ExtractionResult(text=_text, lang=lang, status=_status)
 
 
 def main():
