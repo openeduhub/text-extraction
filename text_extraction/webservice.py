@@ -184,6 +184,7 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
                 browser=browser,
                 preference=data.preference,
                 target_language=lang,
+                output_format=data.output_format,
             )
             if isinstance(extracted_content, FailedContent):
                 # sad case
