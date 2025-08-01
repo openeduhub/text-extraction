@@ -9,3 +9,5 @@ trafilatura
 py3langid
 playwright
 pyrate-limiter>=3
+markitdown[all]
+loguru
