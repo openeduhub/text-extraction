@@ -140,6 +140,14 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
     _reason, _status, _text = None, None, None
     lang = data.lang
 
+    # ToDo: stabilize binary file extraction
+    #  - binary files (.pdf / .ppt etc.) can be extracted with markitdown,
+    #  but the headless browser never receives a "load"-event.
+    # ToDo:
+    #  - detect file extension in URL path
+    #  - check if "markdown"-method was selected
+    #  - use markitdown either directly or requests.Response object
+
     # the simple method is, as its name suggests, pretty simple to use
     if data.method == Methods.simple:
         extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
