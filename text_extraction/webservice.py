@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 import text_extraction.grab_content as grab_content
 from text_extraction._version import __version__
 from text_extraction.grab_content import GrabbedContent, FailedContent
+from text_extraction.markitdown_helper import fetch_markdown_from_url
 
 app = FastAPI()
 
@@ -113,7 +114,10 @@ summary = "Extract text from a given URL"
     method : "simple" or "browser"
         Whether to get the content of the website naively, or to use a headless
         browser in order to e.g. deal with JavaScript-heavy pages.
-    output_format : "text" or "markdown" or "html"
+    output_format : "txt" or "markdown" or "html"
+        txt: plain text (via trafilatura)
+        markdown: text in markdown format (via MarkItDown)
+        html: cleaned HTML (via trafilatura)
 
     Returns
     -------
@@ -137,19 +141,25 @@ summary = "Extract text from a given URL"
 )
 async def from_url(request: Request, data: Data) -> ExtractionResult:
     """Extract text from a given URL"""
-    _reason, _status, _text = None, None, None
+    _content, _reason, _status, _text = None, None, None, None
     lang = data.lang
 
-    # ToDo: stabilize binary file extraction
-    #  - binary files (.pdf / .ppt etc.) can be extracted with markitdown,
-    #  but the headless browser never receives a "load"-event.
-    # ToDo:
-    #  - detect file extension in URL path
-    #  - check if "markdown"-method was selected
-    #  - use markitdown either directly or requests.Response object
+    # ToDo: stabilize binary file extraction for "text" and "html" output formats
 
+    if data.output_format == OutputFormats.markdown:
+        # markitdown extraction takes priority since it uses a different approach (via MarkItDown).
+        # it can handle more file extensions than the other output formats (which use trafilatura)
+        extracted_content = fetch_markdown_from_url(url=data.url)
+        if isinstance(extracted_content, FailedContent):
+            _text = None
+            _content = extracted_content.content
+            _status = extracted_content.status
+            _reason = extracted_content.reason
+        elif isinstance(extracted_content, GrabbedContent):
+            _text = extracted_content.fulltext
+            _status = extracted_content.status
     # the simple method is, as its name suggests, pretty simple to use
-    if data.method == Methods.simple:
+    elif data.method == Methods.simple:
         extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
             data.url,
             preference=data.preference,

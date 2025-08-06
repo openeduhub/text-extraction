@@ -1,12 +1,10 @@
 from collections.abc import Awaitable, Callable
 from functools import partial
-from io import BytesIO
 from typing import Any, Literal, Optional
 
 import py3langid as langid
 import requests
 import trafilatura
-from markitdown import MarkItDown
 from playwright import async_api
 from pydantic import BaseModel
 from trafilatura.settings import use_config
@@ -55,22 +53,7 @@ def from_html_unlimited(
         if _response.ok:
             # happy case: if the HTTP status is between 200 and 400
             match output_format:
-                case "markdown":
-                    _md_converter = MarkItDown()
-                    _md = _md_converter.convert(_response)
-                    if _md and _md.markdown and isinstance(_md.markdown, str):
-                        grabbed_content: GrabbedContent = GrabbedContent(
-                            fulltext=_md.markdown,
-                            status=_response.status_code,
-                        )
-                        return grabbed_content
-                    else:
-                        return FailedContent(
-                            content=_response.content,
-                            reason="Markdown conversion failed.",
-                            status=_response.status_code,
-                        )
-                case _:
+                case "txt" | "html" | "markdown":
                     _text = extract_from_binary_html_with_trafilatura(
                         _response.content,
                         target_language=target_language,
@@ -82,6 +65,13 @@ def from_html_unlimited(
                         status=_response.status_code,
                     )
                     return grabbed_content
+                case _:
+                    failed_content: FailedContent = FailedContent(
+                        content=_response.content,
+                        reason="Unsupported output format.",
+                        status=_response.status_code,
+                    )
+                    return failed_content
         else:
             # sad case: the HTTP response indicates an error
             failed_content: FailedContent = FailedContent(
@@ -123,32 +113,14 @@ async def from_headless_browser_unlimited(
         _body = await _response.body()
         _content = await page.content()
 
-        if _response.ok is False:
+        if not _response.ok:
             failed_content: FailedContent = FailedContent(
                 content=_content, status=_response.status, reason=_response.status_text
             )
             return failed_content
         else:
             match output_format:
-                case "markdown":
-                    _md_converter = MarkItDown()
-                    _body_bin_io: BytesIO = BytesIO(_body)
-                    # markitdown expects either a `str`, `requests.Response` or `BinaryIO` object
-                    _md = _md_converter.convert(_body_bin_io)
-                    if _md and _md.markdown and isinstance(_md.markdown, str):
-                        _fulltext = _md.markdown
-                        grabbed_content: GrabbedContent = GrabbedContent(
-                            fulltext=_fulltext,
-                            status=_response.status,
-                        )
-                        return grabbed_content
-                    else:
-                        return FailedContent(
-                            content=_content,
-                            reason="Markdown conversion failed.",
-                            status=_response.status,
-                        )
-                case _:
+                case "txt" | "html" | "markdown":
                     # handle "txt" and "html" requests with trafilatura
                     _fulltext = extract_from_binary_html_with_trafilatura(
                         _content,
@@ -161,6 +133,13 @@ async def from_headless_browser_unlimited(
                         status=_response.status,
                     )
                     return grabbed_content
+                case _:
+                    failed_content: FailedContent = FailedContent(
+                        content=_content,
+                        reason="Unsupported output format.",
+                        status=_response.status,
+                    )
+                    return failed_content
 
 
 from_headless_browser = limiter(from_headless_browser_unlimited)  # type: ignore
