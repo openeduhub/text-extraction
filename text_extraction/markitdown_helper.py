@@ -171,7 +171,7 @@ def _fetch_markdown_from_url(
         logger.error(f"Markdown conversion failed for URL {url}. \nReason: {e}")
         _failed_content: FailedContent = FailedContent(
             content=None,
-            reason=f"Markdown conversion failed for URL {url}. \n Website target provided the following reason: {e}",
+            reason=f"MarkItDown conversion failed. \n Website target provided the following reason: {e}",
             status=mark_it_down_compatible.http_status_code,
         )
         return _failed_content
