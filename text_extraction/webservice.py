@@ -73,7 +73,7 @@ class FailedExtraction(BaseModel):
 
     class Config:
         # this config makes sure that the HTTP Exception with status 424 appears in the openapi.json
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "error_message": "No content was extracted from the target website.",
                 "status": 404,
