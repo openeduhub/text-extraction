@@ -149,7 +149,9 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
     if data.output_format == OutputFormats.markdown:
         # markitdown extraction takes priority since it uses a different approach (via MarkItDown).
         # it can handle more file extensions than the other output formats (which use trafilatura)
-        extracted_content = fetch_markdown_from_url(url=data.url)
+        extracted_content: GrabbedContent | FailedContent = fetch_markdown_from_url(
+            url=data.url
+        )
         if isinstance(extracted_content, FailedContent):
             _text = None
             _content = extracted_content.content

@@ -7,7 +7,11 @@ import requests
 from loguru import logger
 from markitdown import MarkItDown
 
-from text_extraction.grab_content import GrabbedContent, FailedContent
+from text_extraction.grab_content import (
+    GrabbedContent,
+    FailedContent,
+    generated_user_agent,
+)
 
 # ToDo: currently unsupported document formats:
 #  - .odt (Text)
@@ -205,10 +209,16 @@ def _determine_markitdown_compatibility(url: str) -> MarkItDownCompatible:
     return _result
 
 
+session_with_generated_user_agent = requests.session()
+session_with_generated_user_agent.headers.update({"User-Agent": generated_user_agent})
+
+
 def _fetch_markdown_from_url(
     url: str, mark_it_down_compatible=MarkItDownCompatible
 ) -> GrabbedContent | FailedContent:
-    _md_converter = MarkItDown()
+    # MarkItDown uses a requests.session object internally.
+    # We supply our own User-Agent header here to minimize the risk of "your browser is too old" errors.
+    _md_converter = MarkItDown(requests_session=session_with_generated_user_agent)
     try:
         _md_result = _md_converter.convert(url)
         grabbed_content: GrabbedContent = GrabbedContent(

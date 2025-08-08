@@ -8,7 +8,9 @@ import trafilatura
 from playwright import async_api
 from pydantic import BaseModel
 from trafilatura.settings import use_config
+from trafilatura.readability_lxml import is_probably_readerable
 
+from text_extraction.fake_user_agent import generate_random_user_agent
 from text_extraction.rate_limiting import get_simple_multibucket_limiter, domain_mapper
 
 
@@ -32,6 +34,8 @@ limiter = get_simple_multibucket_limiter(
 # https://trafilatura.readthedocs.io/en/latest/corefunctions.html#extraction
 Preference = Literal["none", "recall", "precision"]
 
+generated_user_agent: str = generate_random_user_agent()
+
 
 def from_html_unlimited(
     url: str,
@@ -43,14 +47,18 @@ def from_html_unlimited(
     # disable signal, because it causes issues with the web-service
     newconfig = use_config()
     newconfig.set("DEFAULT", "EXTRACTION_TIMEOUT", "0")
+    # set a somewhat recent User-Agent (to reduce the number of "your browser is too old" errors)
+    newconfig.set("DEFAULT", "USER_AGENTS", generated_user_agent)
 
     downloaded = trafilatura.fetch_response(url, config=newconfig, decode=True)
     if downloaded is None:
         _text = None
         # if trafilatura can't fetch a response, it returns None.
         # to at least get a rough idea of what went wrong, a fallback HTTP GET via ``requests`` is made.
-        _response = requests.get(url)
-        if _response.ok:
+        _user_agent_header = {"User-Agent": generated_user_agent}
+        _response = requests.get(url=url, headers=_user_agent_header)
+        _is_readable = is_probably_readerable(_response.content)
+        if _response.ok and _is_readable:
             # happy case: if the HTTP status is between 200 and 400
             match output_format:
                 case "txt" | "html" | "markdown":
@@ -108,17 +116,22 @@ async def from_headless_browser_unlimited(
     goto_fun: Callable[[async_api.Page, str], Awaitable] = default_goto,
 ) -> GrabbedContent | FailedContent:
     # create a new page for this task and close it once we are done
-    async with await browser.new_page() as page:
+    async with await browser.new_page(user_agent=generated_user_agent) as page:
         _response = await goto_fun(page, url)
         _body = await _response.body()
+        # guess if the response contains a valid text corpus.
+        # (trafilatura uses a backported function of Mozilla's readability.js to detect common indicators of text content)
+        _is_readable = is_probably_readerable(_body)
         _content = await page.content()
 
         if not _response.ok:
+            # sad case: the HTTP response indicates an error (and we don't want to parse 404 tombstone pages!)
             failed_content: FailedContent = FailedContent(
                 content=_content, status=_response.status, reason=_response.status_text
             )
             return failed_content
-        else:
+        elif _is_readable:
+            # happy case: the HTTP response indicates a valid text corpus that trafilatura can handle
             match output_format:
                 case "txt" | "html" | "markdown":
                     # handle "txt" and "html" requests with trafilatura
@@ -140,6 +153,14 @@ async def from_headless_browser_unlimited(
                         status=_response.status,
                     )
                     return failed_content
+        else:
+            # sad case: the HTTP response appears to be ok, but the text corpus isn't readable by trafilatura
+            failed_content: FailedContent = FailedContent(
+                content=_content,
+                reason="No text content found.",
+                status=_response.status,
+            )
+            return failed_content
 
 
 from_headless_browser = limiter(from_headless_browser_unlimited)  # type: ignore
