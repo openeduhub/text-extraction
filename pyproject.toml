@@ -1,0 +1,35 @@
+[project]
+name = "text-extraction"
+version = "0.3.0"
+description = "A library and micro-service that utilizes trafilatura and markitdown in order to extract text from URLs."
+authors = [
+    {name = "Josefine Katzke"}
+]
+readme = {file= "README.org", content-type = "text/plain" }
+# ToDo: convert the README.org to .md or .rst since uv / PyPI doesn't support Content-Type "text/x-org"
+requires-python = ">=3.13"
+dependencies = [
+    "fake-useragent>=2.2.0",
+    "fastapi>=0.116.1",
+    "loguru>=0.7.3",
+    "markitdown[all]>=0.1.2",
+    "numpy>=2.3.2",
+    "pandas>=2.3.1",
+    "playwright>=1.54.0",
+    "py3langid>=0.3.0",
+    "pydantic>=2.11.7",
+    "pyrate-limiter>=3",
+    "requests>=2.32.5",
+    "setuptools>=80.9.0",
+    "trafilatura>=2.0.0",
+    "uvicorn>=0.35.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/openeduhub/text-extraction"
+Repository = "https://github.com/openeduhub/text-extraction.git"
+Issues = "https://github.com/openeduhub/text-extraction/issues"
+
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
