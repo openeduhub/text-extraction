@@ -31,5 +31,12 @@ Repository = "https://github.com/openeduhub/text-extraction.git"
 Issues = "https://github.com/openeduhub/text-extraction/issues"
 
 [build-system]
-requires = ["hatchling >= 1.26"]
-build-backend = "hatchling.build"
+# see: https://docs.astral.sh/uv/concepts/build-backend/#choosing-a-build-backend
+requires = ["uv_build >= 0.8.12, <0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+# see: https://docs.astral.sh/uv/concepts/build-backend/#modules
+module-name = "text_extraction"
+# by default, uv assumes a "src/"-structure as the module-root, which needs to be changed to the project root dir:
+module-root = ""
