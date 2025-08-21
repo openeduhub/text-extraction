@@ -26,6 +26,9 @@ dependencies = [
     "uvicorn>=0.35.0",
 ]
 
+[project.scripts]
+text-extraction = "text_extraction.webservice:main"
+
 [project.urls]
 Homepage = "https://github.com/openeduhub/text-extraction"
 Repository = "https://github.com/openeduhub/text-extraction.git"
