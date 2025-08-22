@@ -5,8 +5,7 @@ description = "A library and micro-service that utilizes trafilatura and markitd
 authors = [
     {name = "Josefine Katzke"}
 ]
-readme = {file= "README.org", content-type = "text/plain" }
-# ToDo: convert the README.org to .md or .rst since uv / PyPI doesn't support Content-Type "text/x-org"
+readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fake-useragent>=2.2.0",
@@ -20,7 +19,7 @@ dependencies = [
     "pydantic>=2.11.7",
     "pyrate-limiter>=3",
     "requests>=2.32.5",
-    "ruff>=0.12.9",
+    "ruff>=0.12.10",
     "setuptools>=80.9.0",
     "trafilatura>=2.0.0",
     "uvicorn>=0.35.0",
