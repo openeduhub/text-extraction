@@ -14,7 +14,7 @@ jobs:
       matrix:
         python-version:
           - 3.13
-          - 3.14
+#          - 3.14  # ToDo: enable this when Python 3.14 (stable) has been released
 
     steps:
       - uses: actions/checkout@v4
