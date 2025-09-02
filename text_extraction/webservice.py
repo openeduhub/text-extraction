@@ -182,39 +182,54 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
     # if no cdp location was given, just start up a new one.
     else:
         if data.browser_location is None:
-            get_browser_fun = lambda x: x.chromium.launch(
-                args=[
-                    # HACK: for some reason, passing this avoids an issue where
-                    # text extraction would fail when the service is run within
-                    # Docker, due to a page crash
-                    "--single-process"
-                ]
-            )
+            # use a local browser instance
+            async with async_api.async_playwright() as p:
+                browser = await p.chromium.launch(
+                    args=[
+                        # HACK: for some reason, passing this avoids an issue where
+                        # text extraction would fail when the service is run within
+                        # Docker, due to a page crash
+                        "--single-process"
+                    ]
+                )
+                extracted_content = await grab_content.from_headless_browser(
+                    data.url,
+                    browser=browser,
+                    preference=data.preference,
+                    target_language=lang,
+                    output_format=data.output_format,
+                )
+                if isinstance(extracted_content, FailedContent):
+                    # sad case
+                    _text = None
+                    _content = extracted_content.content
+                    _reason = extracted_content.reason
+                    _status = extracted_content.status
+                elif isinstance(extracted_content, GrabbedContent):
+                    _text = extracted_content.fulltext
+                    _status = extracted_content.status
         else:
-            get_browser_fun = lambda x: x.chromium.connect_over_cdp(
-                endpoint_url=data.browser_location
-            )
-        async with (
-            async_api.async_playwright() as p,
-            # close (the connection to) the browser after we are done
-            await get_browser_fun(p) as browser,
-        ):
-            extracted_content = await grab_content.from_headless_browser(
-                data.url,
-                browser=browser,
-                preference=data.preference,
-                target_language=lang,
-                output_format=data.output_format,
-            )
-            if isinstance(extracted_content, FailedContent):
-                # sad case
-                _text = None
-                _content = extracted_content.content
-                _reason = extracted_content.reason
-                _status = extracted_content.status
-            elif isinstance(extracted_content, GrabbedContent):
-                _text = extracted_content.fulltext
-                _status = extracted_content.status
+            # connect to an existing browser instance (e.g.: a headless browser within a docker container)
+            async with async_api.async_playwright() as p:
+                browser = await p.chromium.connect_over_cdp(
+                    endpoint_url=data.browser_location
+                )
+                extracted_content = await grab_content.from_headless_browser(
+                    data.url,
+                    browser=browser,
+                    preference=data.preference,
+                    target_language=lang,
+                    output_format=data.output_format,
+                )
+                if isinstance(extracted_content, FailedContent):
+                    # sad case
+                    _text = None
+                    _content = extracted_content.content
+                    _reason = extracted_content.reason
+                    _status = extracted_content.status
+                elif isinstance(extracted_content, GrabbedContent):
+                    _text = extracted_content.fulltext
+                    _status = extracted_content.status
 
     # no content could be grabbed -> raise an exception
     if _text is None:
