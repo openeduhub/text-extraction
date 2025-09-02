@@ -145,21 +145,13 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
     lang = data.lang
 
     # ToDo: stabilize binary file extraction for "text" and "html" output formats
-
+    extracted_content: GrabbedContent | FailedContent | None = None
     if data.output_format == OutputFormats.markdown:
         # markitdown extraction takes priority since it uses a different approach (via MarkItDown).
         # it can handle more file extensions than the other output formats (which use trafilatura)
         extracted_content: GrabbedContent | FailedContent = fetch_markdown_from_url(
             url=data.url
         )
-        if isinstance(extracted_content, FailedContent):
-            _text = None
-            _content = extracted_content.content
-            _status = extracted_content.status
-            _reason = extracted_content.reason
-        elif isinstance(extracted_content, GrabbedContent):
-            _text = extracted_content.fulltext
-            _status = extracted_content.status
     # the simple method is, as its name suggests, pretty simple to use
     elif data.method == Methods.simple:
         extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
@@ -168,15 +160,6 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
             target_language=lang,
             output_format=data.output_format,
         )
-        if isinstance(extracted_content, FailedContent):
-            # sad case: text extraction nfailed
-            _text = None
-            _content = extracted_content.content
-            _reason = extracted_content.reason
-            _status = extracted_content.status
-        elif isinstance(extracted_content, GrabbedContent):
-            _text = extracted_content.fulltext
-            _status = extracted_content.status
 
     # using a headless browser requires us to specify the browser to use.
     # if no cdp location was given, just start up a new one.
@@ -199,15 +182,6 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
                     target_language=lang,
                     output_format=data.output_format,
                 )
-                if isinstance(extracted_content, FailedContent):
-                    # sad case
-                    _text = None
-                    _content = extracted_content.content
-                    _reason = extracted_content.reason
-                    _status = extracted_content.status
-                elif isinstance(extracted_content, GrabbedContent):
-                    _text = extracted_content.fulltext
-                    _status = extracted_content.status
         else:
             # connect to an existing browser instance (e.g.: a headless browser within a docker container)
             async with async_api.async_playwright() as p:
@@ -221,15 +195,18 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
                     target_language=lang,
                     output_format=data.output_format,
                 )
-                if isinstance(extracted_content, FailedContent):
-                    # sad case
-                    _text = None
-                    _content = extracted_content.content
-                    _reason = extracted_content.reason
-                    _status = extracted_content.status
-                elif isinstance(extracted_content, GrabbedContent):
-                    _text = extracted_content.fulltext
-                    _status = extracted_content.status
+
+    if extracted_content is not None:
+        if isinstance(extracted_content, FailedContent):
+            # sad case: text extraction failed
+            _text = None
+            _content = extracted_content.content
+            _reason = extracted_content.reason
+            _status = extracted_content.status
+        if isinstance(extracted_content, GrabbedContent):
+            # happy case: text extraction succeeded
+            _text = extracted_content.fulltext
+            _status = extracted_content.status
 
     # no content could be grabbed -> raise an exception
     if _text is None:
