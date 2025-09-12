@@ -168,11 +168,19 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
             # use a local browser instance
             async with async_api.async_playwright() as p:
                 browser = await p.chromium.launch(
+                    # args to avoid bot detection / increase stability
+                    # for reference: https://peter.sh/experiments/chromium-command-line-switches/
                     args=[
                         # HACK: for some reason, passing this avoids an issue where
                         # text extraction would fail when the service is run within
                         # Docker, due to a page crash
-                        "--single-process"
+                        "--single-process",
+                        "--disable-dev-shm-usage",
+                        # additional options to avoid bot detection. for reference:
+                        # https://scrapeops.io/playwright-web-scraping-playbook/nodejs-playwright-make-playwright-undetectable/
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-infobars",
+                        "--no-first-run",
                     ]
                 )
                 extracted_content = await grab_content.from_headless_browser(
