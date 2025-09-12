@@ -67,11 +67,15 @@ MARKITDOWN_SUPPORTED_FORMATS = {
     "xml": "XML Document",
     "md": "Markdown Document",
     "markdown": "Markdown Document",
+    "json": "JSON",
+    "jsonl": "JSON Lines",
     # --- Email formats ---
     "eml": "Email Message",
     "msg": "Outlook Message",
     # --- Archives (limited support) ---
     # "zip": "ZIP Archive",
+    # --- Jupyter notebooks ---
+    "ipynb": "Jupyter Notebook",
 }
 
 # ToDo: unsupported Document MIME types:
@@ -80,15 +84,19 @@ MARKITDOWN_SUPPORTED_FORMATS = {
 #       "application/vnd.oasis.opendocument.presentation",  # .odp
 #       "application/vnd.oasis.opendocument.spreadsheet",  # .ods
 # for reference: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types
+# to update the list of supported MIME-Types, check the individual converters in the markitdown package:
+# https://github.com/microsoft/markitdown/tree/main/packages/markitdown/src/markitdown/converters
 MARKITDOWN_SUPPORTED_CONTENT_MIME_TYPES: set[str] = {
     # PDF formats
     "application/pdf",
+    "application/x-pdf",
     # Word formats
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
     "application/msword",  # .doc
     # Excel formats
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
     "application/vnd.ms-excel",  # .xls
+    "application/excel",
     # PowerPoint formats
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
     "application/vnd.ms-powerpoint",  # .ppt
@@ -97,10 +105,21 @@ MARKITDOWN_SUPPORTED_CONTENT_MIME_TYPES: set[str] = {
     "text/rtf",
     "text/plain",
     "text/html",
-    # EPUB format
+    "application/xhtml+xml",
+    # EPUB formats
+    "application/epub",
     "application/epub+zip",
-    # CSV format
+    "application/x-epub+zip",
+    # CSV formats
     "text/csv",
+    "application/csv",
+    # JSON
+    "application/json",
+    # Markdown formats
+    "application/markdown",
+    # Jupyter Notebook formats
+    "application/vnd.jupyter",
+    "application/x-ipynb+json",
     # fallback values when a webserver doesn't return a complete MIME type
     "pdf",
     "docx",
