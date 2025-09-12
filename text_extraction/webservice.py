@@ -11,8 +11,7 @@ from pydantic import BaseModel, Field
 
 import text_extraction.grab_content as grab_content
 from text_extraction._version import __version__
-from text_extraction.grab_content import GrabbedContent, FailedContent
-from text_extraction.markitdown_helper import fetch_markdown_from_url
+from text_extraction.models import GrabbedContent, FailedContent
 
 app = FastAPI()
 
@@ -146,14 +145,8 @@ async def from_url(request: Request, data: Data) -> ExtractionResult:
 
     # ToDo: stabilize binary file extraction for "text" and "html" output formats
     extracted_content: GrabbedContent | FailedContent | None = None
-    if data.output_format == OutputFormats.markdown:
-        # markitdown extraction takes priority since it uses a different approach (via MarkItDown).
-        # it can handle more file extensions than the other output formats (which use trafilatura)
-        extracted_content: GrabbedContent | FailedContent = fetch_markdown_from_url(
-            url=data.url
-        )
     # the simple method is, as its name suggests, pretty simple to use
-    elif data.method == Methods.simple:
+    if data.method == Methods.simple:
         extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
             data.url,
             preference=data.preference,

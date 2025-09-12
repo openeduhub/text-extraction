@@ -26,6 +26,8 @@ def generate_random_user_agent() -> str:
         return _ua.fallback
 
 
+GENERATED_USER_AGENT: str = generate_random_user_agent()
+
 if __name__ == "__main__":
     logger.debug(f"Generating random user agent:\n{generate_random_user_agent()}")
     pass

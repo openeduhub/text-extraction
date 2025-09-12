@@ -1,17 +1,16 @@
 import re
+import tempfile
 from collections import namedtuple
 from os.path import splitext
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
 from loguru import logger
 from markitdown import MarkItDown
 
-from text_extraction.grab_content import (
-    GrabbedContent,
-    FailedContent,
-    generated_user_agent,
-)
+from text_extraction.fake_user_agent import GENERATED_USER_AGENT
+from text_extraction.models import GrabbedContent, FailedContent
 
 # ToDo: currently unsupported document formats:
 #  - .odt (Text)
@@ -229,7 +228,7 @@ def _determine_markitdown_compatibility(url: str) -> MarkItDownCompatible:
 
 
 session_with_generated_user_agent = requests.session()
-session_with_generated_user_agent.headers.update({"User-Agent": generated_user_agent})
+session_with_generated_user_agent.headers.update({"User-Agent": GENERATED_USER_AGENT})
 
 
 def _fetch_markdown_from_url(
@@ -266,9 +265,19 @@ def fetch_markdown_from_url(url: str) -> GrabbedContent | FailedContent:
     return _result
 
 
-# ToDo: implement functions for
-#  - implement markitdown function in webservice.py
-#   - rate-limit markitdown so it doesn't hammer websites with too many requests at the same time
+def fetch_markdown_from_html_content(html_content: str) -> str:
+    """Convert an HTML string to a Markdown string."""
+    _md_converter = MarkItDown(requests_session=session_with_generated_user_agent)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=True) as tmp:
+        # write the HTML content to a temporary file as a workaround for MarkItDown not supporting HTML input directly
+        tmp.write(html_content)
+        tmp_path = Path(tmp.name)
+        _md_result = _md_converter.convert(tmp_path)
+    return _md_result.markdown
+
+
+# ToDo:
+#  - rate-limit markitdown so it doesn't hammer websites with too many requests at the same time
 
 if __name__ == "__main__":
     test_headers = [
