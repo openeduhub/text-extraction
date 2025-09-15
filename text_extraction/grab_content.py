@@ -6,11 +6,15 @@ import py3langid as langid
 import requests
 import trafilatura
 from playwright import async_api
+from playwright.async_api import Error
 from trafilatura.settings import use_config
 from trafilatura.readability_lxml import is_probably_readerable
 
 from text_extraction.fake_user_agent import GENERATED_USER_AGENT
-from text_extraction.markitdown_helper import fetch_markdown_from_html_content
+from text_extraction.markitdown_helper import (
+    fetch_markdown_from_html_content,
+    fetch_markdown_from_url,
+)
 from text_extraction.models import GrabbedContent, FailedContent
 from text_extraction.rate_limiting import get_simple_multibucket_limiter, domain_mapper
 
@@ -104,7 +108,15 @@ async def from_headless_browser_unlimited(
 ) -> GrabbedContent | FailedContent:
     # create a new page for this task and close it once we are done
     async with await browser.new_page(user_agent=GENERATED_USER_AGENT) as page:
-        _response = await goto_fun(page, url)
+        try:
+            _response = await goto_fun(page, url)
+        except Error as playwright_error:
+            if "Download is starting" in str(playwright_error):
+                # this case happens when a website triggers a file download (e.g.: the URl points to a PDF file)
+                extracted_content = fetch_markdown_from_url(url)
+                return extracted_content
+            else:
+                raise playwright_error
         _body = await _response.body()
         # guess if the response contains a valid text corpus.
         # (trafilatura uses a backported function of Mozilla's readability.js to detect common indicators of text content)
