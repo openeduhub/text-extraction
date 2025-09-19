@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import datetime
 from enum import StrEnum, auto
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
-from fastapi import FastAPI
-
+from fastapi import FastAPI, HTTPException, Request, status
 from playwright import async_api
 from pydantic import BaseModel, Field
 
 import text_extraction.grab_content as grab_content
 from text_extraction._version import __version__
+from text_extraction.models import GrabbedContent, FailedContent
 
 app = FastAPI()
+
+
+class HealthCheck(BaseModel):
+    status: str = "ok"
+    version: str = __version__
+    timestamp: datetime = Field(default_factory=datetime.now)
 
 
 class Methods(StrEnum):
@@ -21,23 +27,66 @@ class Methods(StrEnum):
     browser = auto()
 
 
+class OutputFormats(StrEnum):
+    txt = auto()
+    markdown = auto()
+    html = auto()
+
+
 class Data(BaseModel):
     url: str
     method: Methods = Methods.simple
     browser_location: Optional[str] = Field(default=None, examples=[None])
     lang: str = "auto"
+    output_format: str = OutputFormats.txt
     preference: grab_content.Preference = "none"
 
 
-class Result(BaseModel):
+class ExtractionResult(BaseModel):
     text: str
     lang: str
+    status: int | None = Field(
+        description="HTTP status code of the target website.", examples=[200, 301]
+    )
     version: str = __version__
 
 
+class FailedExtraction(BaseModel):
+    error_message: str = Field(
+        default="No content was extracted.",
+    )
+    status: int | None = Field(
+        description="HTTP status code of the target website ", examples=[404, 503]
+    )
+    reason: str | None = Field(
+        description="HTTP reason of the target website. "
+        "Only available if the website status indicated an error.",
+        examples=["Not Found", "Service Unavailable"],
+        default=None,
+    )
+    version: str = __version__
+    content: str | None = Field(
+        default=None,
+        description="The response content of the target website. ",
+        examples=["<html>...", "</html>"],
+    )
+
+    class Config:
+        # this config makes sure that the HTTP Exception with status 424 appears in the openapi.json
+        json_schema_extra = {
+            "example": {
+                "error_message": "No content was extracted from the target website.",
+                "status": 404,
+                "reason": "Not Found",
+                "version": __version__,
+                "content": "<html>...",
+            }
+        }
+
+
 @app.get("/_ping")
-async def _ping():
-    pass
+async def _ping() -> HealthCheck:
+    return HealthCheck()
 
 
 summary = "Extract text from a given URL"
@@ -64,6 +113,10 @@ summary = "Extract text from a given URL"
     method : "simple" or "browser"
         Whether to get the content of the website naively, or to use a headless
         browser in order to e.g. deal with JavaScript-heavy pages.
+    output_format : "txt" or "markdown" or "html"
+        txt: plain text (via trafilatura)
+        markdown: text in markdown format (via MarkItDown)
+        html: cleaned HTML (via trafilatura)
 
     Returns
     -------
@@ -74,65 +127,115 @@ summary = "Extract text from a given URL"
         Otherwise, whatever lang was set to.
     version : str
         The version of the text extractor.
+    status: int
+        The HTTP status code of the target website.
     """,
+    responses={
+        status.HTTP_200_OK: {"model": ExtractionResult},
+        status.HTTP_424_FAILED_DEPENDENCY: {
+            "model": FailedExtraction,
+            "description": "Failed Dependency: No content could be extracted from the target website.",
+        },
+    },
 )
-async def from_url(request: Request, data: Data) -> Result:
+async def from_url(request: Request, data: Data) -> ExtractionResult:
     """Extract text from a given URL"""
-
+    _content, _reason, _status, _text = None, None, None, None
     lang = data.lang
 
-    # the simple method is, as its name suggest, pretty simple to use
+    # ToDo: stabilize binary file extraction for "text" and "html" output formats
+    extracted_content: GrabbedContent | FailedContent | None = None
+    # the simple method is, as its name suggests, pretty simple to use
     if data.method == Methods.simple:
-        text = grab_content.from_html(
+        extracted_content: GrabbedContent | FailedContent = grab_content.from_html(
             data.url,
             preference=data.preference,
             target_language=lang,
+            output_format=data.output_format,
         )
 
     # using a headless browser requires us to specify the browser to use.
     # if no cdp location was given, just start up a new one.
     else:
         if data.browser_location is None:
-
-            get_browser_fun = lambda x: x.chromium.launch(
-                args=[
-                    # HACK: for some reason, passing this avoids an issue where
-                    # text extraction would fail when the service is run within
-                    # Docker, due to a page crash
-                    "--single-process"
-                ]
-            )
+            # use a local browser instance
+            async with async_api.async_playwright() as p:
+                browser = await p.chromium.launch(
+                    # args to avoid bot detection / increase stability
+                    # for reference: https://peter.sh/experiments/chromium-command-line-switches/
+                    args=[
+                        # HACK: for some reason, passing this avoids an issue where
+                        # text extraction would fail when the service is run within
+                        # Docker, due to a page crash
+                        "--single-process",
+                        "--disable-dev-shm-usage",
+                        # additional options to avoid bot detection. for reference:
+                        # https://scrapeops.io/playwright-web-scraping-playbook/nodejs-playwright-make-playwright-undetectable/
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-infobars",
+                        "--no-first-run",
+                    ]
+                )
+                extracted_content = await grab_content.from_headless_browser(
+                    data.url,
+                    browser=browser,
+                    preference=data.preference,
+                    target_language=lang,
+                    output_format=data.output_format,
+                )
         else:
-            get_browser_fun = lambda x: x.chromium.connect_over_cdp(
-                endpoint_url=data.browser_location
-            )
-        async with (
-            async_api.async_playwright() as p,
-            # close (the connection to) the browser after we are done
-            await get_browser_fun(p) as browser,
-        ):
-            text = await grab_content.from_headless_browser(
-                data.url,
-                browser=browser,
-                preference=data.preference,
-                target_language=lang,
-            )
+            # connect to an existing browser instance (e.g.: a headless browser within a docker container)
+            async with async_api.async_playwright() as p:
+                browser = await p.chromium.connect_over_cdp(
+                    endpoint_url=data.browser_location
+                )
+                extracted_content = await grab_content.from_headless_browser(
+                    data.url,
+                    browser=browser,
+                    preference=data.preference,
+                    target_language=lang,
+                    output_format=data.output_format,
+                )
+
+    if extracted_content is not None:
+        if isinstance(extracted_content, FailedContent):
+            # sad case: text extraction failed
+            _text = None
+            _content = extracted_content.content
+            _reason = extracted_content.reason
+            _status = extracted_content.status
+        if isinstance(extracted_content, GrabbedContent):
+            # happy case: text extraction succeeded
+            _text = extracted_content.fulltext
+            _status = extracted_content.status
 
     # no content could be grabbed -> raise an exception
-    if text is None:
+    if _text is None:
         if data.lang is None:
             language_line = "or because the language was not succesfully detected. Try setting the lang parameter."
+        elif _status != 200:
+            language_line = (
+                f"or because the website returned an error status code {_status}."
+            )
         else:
             language_line = f"or because the text is not of language '{lang}'."
 
+        failed_extraction = FailedExtraction(
+            error_message=f"No content was extracted. "
+            f"This could be due to no text being present on the page, the website relying on JavaScript, "
+            f"{language_line}",
+            status=_status,
+            reason=_reason,
+            content=_content,
+        )
         raise HTTPException(
-            status_code=500,
-            detail=f"No content was extracted. This could be due to no text being present on the page, the website relying on JavaScript, {language_line}",
+            status_code=424,
+            detail=failed_extraction.model_dump(),
         )
 
-    lang = lang if lang != "auto" else grab_content.get_lang(text)
+    lang = lang if lang != "auto" else grab_content.get_lang(_text)
 
-    return Result(text=text, lang=lang)
+    return ExtractionResult(text=_text, lang=lang, status=_status)
 
 
 def main():
