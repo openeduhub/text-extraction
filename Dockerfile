@@ -4,6 +4,22 @@
 # Use a Python Image that comes with uv pre-installed:
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
+# Install Chromium and necessary system dependencies for Playwright
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium-browser \
+    libxss1 \
+    libappindicator1 \
+    libindicator7 \
+    libnss3 \
+    fonts-liberation \
+    xdg-utils \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Playwright to use installed Chromium instead of downloading it
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 # Install the project into `/app`
 WORKDIR /app
 
