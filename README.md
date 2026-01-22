@@ -76,4 +76,59 @@ To run the server locally, use the following `uv` shortcut:
 uv run text-extraction --port 8000
 ```
 
-This shortcut is defined in the `pyproject.toml` file within `[project.scripts]`. *(for reference: [uv Docs: Configuring projects - Command-line interfaces](https://docs.astral.sh/uv/concepts/projects/config/#command-line-interfaces)))*
+This shortcut is defined in the `pyproject.toml` file within `[project.scripts]`. *(for reference: [uv Docs: Configuring projects - Command-line interfaces](https://docs.astral.sh/uv/concepts/projects/config/#command-line-interfaces))*
+
+# Running the service in Docker
+
+To build and run the service in Docker:
+
+```shell
+# Build the Docker image
+docker build -t text-extraction:latest .
+
+# Run the container
+docker run -p 8000:8000 text-extraction:latest
+```
+
+The Dockerfile includes:
+- Playwright browser (Chromium) installation during build time
+- System dependencies for Chromium runtime
+- Optimized layer caching with uv
+
+## Docker Environment Variables
+
+You can customize the service behavior with environment variables:
+
+```shell
+docker run -p 8000:8000 \
+  -e "PORT=8000" \
+  -e "HOST=0.0.0.0" \
+  text-extraction:latest
+```
+
+# Playwright Browser Dependencies
+
+The service uses [Playwright](https://playwright.dev/) for headless browser automation when the `browser` method is used.
+
+## Local Development
+
+When using the service locally with the `browser` method, you need to install Playwright browsers:
+
+```shell
+# Install Chromium browser
+playwright install chromium
+
+# Or install all browsers (Chromium, Firefox, WebKit)
+playwright install
+```
+
+## Docker Deployment
+
+In Docker, Playwright browsers and all required system dependencies are automatically installed during the image build process. No additional setup is required when running the container.
+
+The Dockerfile handles:
+1. Installation of system-level dependencies required by Chromium
+2. Download of Playwright browser binaries during build time
+3. Installation of runtime dependencies via `playwright install-deps`
+
+This ensures the service is ready to use immediately upon container startup.
