@@ -50,6 +50,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # This downloads the browsers during build time, not at runtime
 RUN /app/.venv/bin/playwright install chromium
 
+# Install system dependencies required by Playwright browsers at runtime
+RUN /app/.venv/bin/playwright install-deps chromium
+
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
