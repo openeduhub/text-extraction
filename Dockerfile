@@ -4,21 +4,26 @@
 # Use a Python Image that comes with uv pre-installed:
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
-# Install Chromium and necessary system dependencies for Playwright
+# Install system dependencies required by Playwright/Chromium
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium-browser \
-    libxss1 \
-    libappindicator1 \
-    libindicator7 \
     libnss3 \
-    fonts-liberation \
-    xdg-utils \
+    libnspr4 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libxcb1 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
-# Set Playwright to use installed Chromium instead of downloading it
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=true
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Install the project into `/app`
 WORKDIR /app
@@ -40,6 +45,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
+
+# Install Playwright browsers (Chromium, Firefox, WebKit)
+# This downloads the browsers during build time, not at runtime
+RUN /app/.venv/bin/playwright install chromium
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
